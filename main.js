@@ -103,21 +103,21 @@ function conectarNaMesa() {
 }
 
 // Esta função pega as cartas que estão no banco e as desenha na tela
-function renderizarMesa(cartas) {
-    const mesaDiv = document.querySelector('.mesa'); // Ajuste aqui se sua div tiver outro nome
-    if (!mesaDiv) {
-        console.error("Não encontrei a div da mesa!");
-        return;
+async function renderizarMesa(cartas) {
+    const mesaDiv = document.getElementById('area-mesa');
+    if (!mesaDiv) return;
+    
+    mesaDiv.innerHTML = ''; // Limpa tudo antes de desenhar
+    
+    // Verifique se 'cartas' é um array válido antes de fazer o foreach
+    if (Array.isArray(cartas)) {
+        cartas.forEach(carta => {
+            const div = document.createElement('div');
+            div.className = 'carta-na-mesa'; // Usa o CSS correto acima
+            div.innerText = carta; // Ex: "A ♠"
+            mesaDiv.appendChild(div);
+        });
     }
-    
-    mesaDiv.innerHTML = ''; // Limpa a mesa antes de redesenhar
-    
-    cartas.forEach(carta => {
-        const cartaElemento = document.createElement('div');
-        cartaElemento.className = 'carta-na-mesa';
-        cartaElemento.innerText = carta;
-        mesaDiv.appendChild(cartaElemento);
-    });
 }
 
 // Inicialização

@@ -16,30 +16,34 @@ body {
 }
 
 .mesa {
-    background-color: #0b6623; /* Verde feltro clássico */
-    border: 10px solid #5c4033; /* Borda cor de madeira */
-    border-radius: 100px;
-    height: 350px;
+    background-color: green;
+    border: 5px solid #5d4037; /* Borda sólida marrom */
+    width: 80%;
+    height: 300px;
     margin: 20px auto;
-    position: relative;
+    border-radius: 20px;
+    
+    /* ALINHAMENTO IMPORTANTE */
     display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 15px;
+    justify-content: center; /* Centraliza as cartas horizontalmente */
+    align-items: center;    /* Centraliza as cartas verticalmente */
+    
+    /* REMOVA QUALQUER COISA PARECIDA COM ISSO: */
+    /* border-style: dashed; */ 
+    /* gap: 2px; */ /* Se tiver um gap muito grande entre elementos vazios, pode causar isso */
 }
 
-.carta {
-    background-color: white;
-    color: black;
-    width: 80px;
-    height: 120px;
+/* Estilo para as cartas que vão DENTRO da mesa */
+.carta-na-mesa {
+    background: white;
+    border: 1px solid #ccc;
+    padding: 15px;
+    margin: 0 5px; /* Espaçamento lateral apenas */
     border-radius: 8px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 24px;
     font-weight: bold;
-    box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+    font-size: 24px;
+    /* Garante que elas fiquem lado a lado dentro do flex */
+    display: inline-block; 
 }
 
 .minha-mao {
