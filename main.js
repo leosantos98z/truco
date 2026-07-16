@@ -47,46 +47,43 @@ function renderizarMinhaMao(cartas) {
 }
 
 // 3. Função Principal: Jogar Carta
+let jogando = false; // Bloqueador de cliques múltiplos
+
 async function jogarCarta(index, maoAtual) {
-    console.log("Cartas na mão antes de jogar:", maoAtual);
+    if (jogando) return; // Se já está processando, não faz nada
+    jogando = true;
     
-    // 1. Define a carta e a nova mão aqui dentro para garantir que existam
+    console.log("Tentando jogar carta:", index);
+    
     const cartaJogada = maoAtual[index];
     const novaMao = maoAtual.filter((_, i) => i !== index);
     
-    // 2. Atualiza a mão no Supabase (usando upsert ou update com tratamento de erro)
+    // Atualiza a mão no Supabase
     const { error: erroMao } = await supabase
         .from('jogadores')
         .update({ mao: novaMao })
         .eq('jogador_id', meuID);
     
     if (erroMao) {
-        console.error("Erro ao atualizar mão:", erroMao);
-        return; // Para o código se der erro
+        console.error("Erro na mão:", erroMao);
+        jogando = false;
+        return;
     }
     
-    // 3. Adiciona na mesa
-    const { data: mesa } = await supabase
-        .from('rodadas')
-        .select('cartas_na_mesa')
-        .eq('sala_id', SALA_ID)
-        .single();
-        
+    // Busca a mesa e adiciona a carta
+    const { data: mesa } = await supabase.from('rodadas').select('cartas_na_mesa').eq('sala_id', SALA_ID).single();
     const cartasAtuais = mesa?.cartas_na_mesa || [];
+    
+    // Verifica se a carta já não está na mesa para evitar duplicidade
     const novasCartasNaMesa = [...cartasAtuais, cartaJogada];
     
     await supabase.from('rodadas')
         .update({ cartas_na_mesa: novasCartasNaMesa })
         .eq('sala_id', SALA_ID);
     
-    // 4. Atualiza a tela (garantindo que novaMao está definida)
+    // Atualiza interface
     renderizarMinhaMao(novaMao);
-    // IMPORTANTE: Certifique-se de que a função renderizarMesa exista no seu código
-    if (typeof renderizarMesa === 'function') {
-        renderizarMesa(novasCartasNaMesa);
-    } else {
-        console.warn("Função renderizarMesa não encontrada!");
-    }
+    jogando = false; // Libera para o próximo clique
 }
 
 // 4. Conexão Realtime
