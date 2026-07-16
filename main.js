@@ -95,3 +95,20 @@ btnTruco.addEventListener('click', async () => {
 
 // Dá o start quando a página carrega
 conectarNaMesa();
+
+// Adicione isso no final do seu main.js
+async function carregarEstadoInicial() {
+    const { data, error } = await supabase
+        .from('rodadas')
+        .select('cartas_na_mesa')
+        .eq('sala_id', 'SALA-01')
+        .single();
+    
+    if (data && data.cartas_na_mesa) {
+        renderizarMesa(data.cartas_na_mesa);
+    }
+}
+
+// Chame essa função logo após a conexão
+conectarNaMesa();
+carregarEstadoInicial();
