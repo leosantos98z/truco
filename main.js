@@ -49,19 +49,21 @@ function renderizarMinhaMao(cartas) {
 // 3. Função Principal: Jogar Carta
 async function jogarCarta(index, maoAtual) {
     const cartaJogada = maoAtual[index];
-    
-    // Remove a carta da mão localmente
     const novaMao = maoAtual.filter((_, i) => i !== index);
     
-    // Atualiza a mão no Supabase
+    // 1. Atualiza a mão no Supabase
     await supabase.from('jogadores').update({ mao: novaMao }).eq('jogador_id', meuID);
     
-    // Adiciona na mesa (buscando cartas atuais primeiro)
+    // 2. Busca o estado atual da mesa para garantir que temos os dados mais recentes
     const { data: mesa } = await supabase.from('rodadas').select('cartas_na_mesa').eq('sala_id', SALA_ID).single();
-    const novasCartasNaMesa = [...(mesa.cartas_na_mesa || []), cartaJogada];
+    const cartasAtuais = mesa?.cartas_na_mesa || [];
     
+    // 3. Adiciona a carta na mesa
+    const novasCartasNaMesa = [...cartasAtuais, cartaJogada];
     await supabase.from('rodadas').update({ cartas_na_mesa: novasCartasNaMesa }).eq('sala_id', SALA_ID);
     
+    // 4. ATUALIZAÇÃO IMEDIATA: Chama a função que desenha na mesa agora mesmo!
+    renderizarMesa(novasCartasNaMesa); 
     renderizarMinhaMao(novaMao);
 }
 
