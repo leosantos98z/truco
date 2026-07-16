@@ -42,6 +42,20 @@ body {
     box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
 }
 
+#minha-mao {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 15px; /* Espaço entre as cartas */
+    height: 60px; /* Garante que os botões tenham espaço */
+}
+
+#minha-mao button {
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
 .carta.vermelha { color: #e74c3c; }
 .carta.preta { color: #2c3e50; }
 

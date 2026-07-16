@@ -48,8 +48,8 @@ function renderizarMinhaMao(cartas) {
 
 // 3. Função Principal: Jogar Carta
 async function jogarCarta(index, maoAtual) {
+    console.log("Cartas na mão antes de jogar:", maoAtual);
     const cartaJogada = maoAtual[index];
-    const novaMao = maoAtual.filter((_, i) => i !== index);
     
     // 1. Atualiza a mão no Supabase
     await supabase.from('jogadores').update({ mao: novaMao }).eq('jogador_id', meuID);
