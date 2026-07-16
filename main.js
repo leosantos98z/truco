@@ -49,22 +49,44 @@ function renderizarMinhaMao(cartas) {
 // 3. Função Principal: Jogar Carta
 async function jogarCarta(index, maoAtual) {
     console.log("Cartas na mão antes de jogar:", maoAtual);
+    
+    // 1. Define a carta e a nova mão aqui dentro para garantir que existam
     const cartaJogada = maoAtual[index];
+    const novaMao = maoAtual.filter((_, i) => i !== index);
     
-    // 1. Atualiza a mão no Supabase
-    await supabase.from('jogadores').update({ mao: novaMao }).eq('jogador_id', meuID);
+    // 2. Atualiza a mão no Supabase (usando upsert ou update com tratamento de erro)
+    const { error: erroMao } = await supabase
+        .from('jogadores')
+        .update({ mao: novaMao })
+        .eq('jogador_id', meuID);
     
-    // 2. Busca o estado atual da mesa para garantir que temos os dados mais recentes
-    const { data: mesa } = await supabase.from('rodadas').select('cartas_na_mesa').eq('sala_id', SALA_ID).single();
+    if (erroMao) {
+        console.error("Erro ao atualizar mão:", erroMao);
+        return; // Para o código se der erro
+    }
+    
+    // 3. Adiciona na mesa
+    const { data: mesa } = await supabase
+        .from('rodadas')
+        .select('cartas_na_mesa')
+        .eq('sala_id', SALA_ID)
+        .single();
+        
     const cartasAtuais = mesa?.cartas_na_mesa || [];
-    
-    // 3. Adiciona a carta na mesa
     const novasCartasNaMesa = [...cartasAtuais, cartaJogada];
-    await supabase.from('rodadas').update({ cartas_na_mesa: novasCartasNaMesa }).eq('sala_id', SALA_ID);
     
-    // 4. ATUALIZAÇÃO IMEDIATA: Chama a função que desenha na mesa agora mesmo!
-    renderizarMesa(novasCartasNaMesa); 
+    await supabase.from('rodadas')
+        .update({ cartas_na_mesa: novasCartasNaMesa })
+        .eq('sala_id', SALA_ID);
+    
+    // 4. Atualiza a tela (garantindo que novaMao está definida)
     renderizarMinhaMao(novaMao);
+    // IMPORTANTE: Certifique-se de que a função renderizarMesa exista no seu código
+    if (typeof renderizarMesa === 'function') {
+        renderizarMesa(novasCartasNaMesa);
+    } else {
+        console.warn("Função renderizarMesa não encontrada!");
+    }
 }
 
 // 4. Conexão Realtime
@@ -78,6 +100,24 @@ function conectarNaMesa() {
                 console.log("Mesa atualizada:", payload.new.cartas_na_mesa);
             }
     }).subscribe();
+}
+
+// Esta função pega as cartas que estão no banco e as desenha na tela
+function renderizarMesa(cartas) {
+    const mesaDiv = document.querySelector('.mesa'); // Ajuste aqui se sua div tiver outro nome
+    if (!mesaDiv) {
+        console.error("Não encontrei a div da mesa!");
+        return;
+    }
+    
+    mesaDiv.innerHTML = ''; // Limpa a mesa antes de redesenhar
+    
+    cartas.forEach(carta => {
+        const cartaElemento = document.createElement('div');
+        cartaElemento.className = 'carta-na-mesa';
+        cartaElemento.innerText = carta;
+        mesaDiv.appendChild(cartaElemento);
+    });
 }
 
 // Inicialização
