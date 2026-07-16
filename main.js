@@ -112,3 +112,40 @@ async function carregarEstadoInicial() {
 // Chame essa função logo após a conexão
 conectarNaMesa();
 carregarEstadoInicial();
+
+
+// 1. Função para carregar e exibir cartas
+async function carregarEExibir() {
+    console.log("Buscando estado inicial...");
+    const { data, error } = await supabase
+        .from('rodadas')
+        .select('cartas_na_mesa')
+        .eq('sala_id', SALA_ID)
+        .single();
+    
+    if (data && data.cartas_na_mesa) {
+        renderizarMesa(data.cartas_na_mesa);
+        divStatus.innerText = "Mesa carregada!";
+    }
+}
+
+// 2. Escutar mudanças em tempo real
+function conectarNaMesa() {
+    supabase
+        .channel('mesa-truco')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'rodadas', filter: `sala_id=eq.${SALA_ID}` },
+            (payload) => {
+                console.log("Mudança detectada:", payload);
+                if (payload.new.cartas_na_mesa) {
+                    renderizarMesa(payload.new.cartas_na_mesa);
+                }
+            }
+        )
+        .subscribe();
+}
+
+// Executar ambos
+conectarNaMesa();
+carregarEExibir();
