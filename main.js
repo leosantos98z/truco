@@ -40,25 +40,23 @@ function renderizarMesa(cartas) {
 function conectarNaMesa() {
     divStatus.innerText = "Conectado. Observando a mesa...";
     
-    supabase
-        .channel('mesa-truco')
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'rodadas', filter: `sala_id=eq.${SALA_ID}` },
-            (payload) => {
-                const estado = payload.new;
-                
-                if (estado.estado_truco === 'pedido') {
-                    alert("ALGUÉM PEDIU TRUCO!");
-                }
-                
-                // Desenha a carta na mesa assim que ela chega do banco de dados
-                if (estado.cartas_na_mesa) {
-                    renderizarMesa(estado.cartas_na_mesa);
-                }
+    // 1. Criar o canal
+    const canal = supabase.channel('mesa-truco');
+
+    // 2. Definir o que acontece QUANDO algo mudar
+    canal.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rodadas', filter: `sala_id=eq.${SALA_ID}` },
+        (payload) => {
+            console.log("Mudança detectada:", payload);
+            if (payload.new && payload.new.cartas_na_mesa) {
+                renderizarMesa(payload.new.cartas_na_mesa);
             }
-        )
-        .subscribe();
+        }
+    );
+
+    // 3. AGORA SIM, conectar/inscrever
+    canal.subscribe();
 }
 
 // 2. Ação de jogar uma carta
