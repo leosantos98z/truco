@@ -1,149 +1,83 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js'
 
-// Pegando as variáveis de ambiente que você vai configurar na Vercel
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Configuração do Supabase (Substitua pelos seus valores da Vercel)
+const supabase = createClient('https://stcdfollezdgowguewes.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0Y2Rmb2xsZXpkZ293Z3Vld2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxNTQ5NTcsImV4cCI6MjA5OTczMDk1N30.Tx-AUWbQp2GriJI8PfVVlMI1zPBcQ-16Qd7DIbf8a0M')
+const SALA_ID = 'SALA-01'
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Identificação do jogador
+let meuID = localStorage.getItem('jogador_id');
+if (!meuID) {
+    meuID = 'jogador_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('jogador_id', meuID);
+}
 
-// Definindo a sala onde o jogo acontece
-const SALA_ID = 'SALA-01';
+const divStatus = document.getElementById('status'); // Certifique-se que existe no HTML
 
-// Elementos da tela
-const divMesa = document.getElementById('mesa-cartas');
-const btnJogar = document.getElementById('btn-jogar');
-const btnTruco = document.getElementById('btn-truco');
-const divStatus = document.getElementById('status');
+// 1. Inicializar Mão do Jogador
+async function inicializarMao() {
+    const { data: existente } = await supabase
+        .from('jogadores')
+        .select('*')
+        .eq('jogador_id', meuID)
+        .single();
 
-// Função para desenhar as cartas na mesa visualmente
-function renderizarMesa(cartas) {
-    divMesa.innerHTML = ''; 
-    if (!cartas) return;
-
-    cartas.forEach(cartaStr => {
-        const divCarta = document.createElement('div');
-        divCarta.className = 'carta';
+    if (!existente) {
+        const baralho = ["A ♠", "7 ♥", "Q ♦", "J ♣", "K ♠", "2 ♥"];
+        const maoInicial = [baralho[0], baralho[1], baralho[2]];
         
-        // Colore os naipes vermelhos ou pretos
-        if (cartaStr.includes('♥') || cartaStr.includes('♦')) {
-            divCarta.classList.add('vermelha');
-        } else {
-            divCarta.classList.add('preta');
-        }
-        
-        divCarta.innerText = cartaStr;
-        divMesa.appendChild(divCarta);
+        await supabase.from('jogadores').insert([
+            { jogador_id: meuID, sala_id: SALA_ID, mao: maoInicial }
+        ]);
+        renderizarMinhaMao(maoInicial);
+    } else {
+        renderizarMinhaMao(existente.mao);
+    }
+}
+
+// 2. Renderizar Mão na Tela
+function renderizarMinhaMao(cartas) {
+    const divMao = document.getElementById('minha-mao');
+    divMao.innerHTML = '';
+    cartas.forEach((carta, index) => {
+        const btn = document.createElement('button');
+        btn.innerText = carta;
+        btn.onclick = () => jogarCarta(index, cartas);
+        divMao.appendChild(btn);
     });
 }
 
-// 1. Conectar no Realtime do Supabase e ficar escutando
-function conectarNaMesa() {
-    divStatus.innerText = "Conectado. Observando a mesa...";
+// 3. Função Principal: Jogar Carta
+async function jogarCarta(index, maoAtual) {
+    const cartaJogada = maoAtual[index];
     
-    // 1. Criar o canal
+    // Remove a carta da mão localmente
+    const novaMao = maoAtual.filter((_, i) => i !== index);
+    
+    // Atualiza a mão no Supabase
+    await supabase.from('jogadores').update({ mao: novaMao }).eq('jogador_id', meuID);
+    
+    // Adiciona na mesa (buscando cartas atuais primeiro)
+    const { data: mesa } = await supabase.from('rodadas').select('cartas_na_mesa').eq('sala_id', SALA_ID).single();
+    const novasCartasNaMesa = [...(mesa.cartas_na_mesa || []), cartaJogada];
+    
+    await supabase.from('rodadas').update({ cartas_na_mesa: novasCartasNaMesa }).eq('sala_id', SALA_ID);
+    
+    renderizarMinhaMao(novaMao);
+}
+
+// 4. Conexão Realtime
+function conectarNaMesa() {
     const canal = supabase.channel('mesa-truco');
 
-    // 2. Definir o que acontece QUANDO algo mudar
-    canal.on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'rodadas', filter: `sala_id=eq.${SALA_ID}` },
+    canal.on('postgres_changes', { event: '*', schema: 'public', table: 'rodadas', filter: `sala_id=eq.${SALA_ID}` }, 
         (payload) => {
-            console.log("Mudança detectada:", payload);
             if (payload.new && payload.new.cartas_na_mesa) {
-                renderizarMesa(payload.new.cartas_na_mesa);
+                // Aqui você chamaria sua função renderizarMesa existente
+                console.log("Mesa atualizada:", payload.new.cartas_na_mesa);
             }
-        }
-    );
-
-    // 3. AGORA SIM, conectar/inscrever
-    canal.subscribe();
+    }).subscribe();
 }
 
-// 2. Ação de jogar uma carta
-btnJogar.addEventListener('click', async () => {
-    // Pega as cartas que já estão na mesa no banco de dados
-    const { data: rodada } = await supabase
-        .from('rodadas')
-        .select('cartas_na_mesa')
-        .eq('sala_id', SALA_ID)
-        .single();
-        
-    const cartasAtuais = rodada?.cartas_na_mesa || [];
-    
-    // Sorteia uma carta apenas para testar a comunicação
-    const cartasSimuladas = ['A ♠', '7 ♥', '3 ♣', 'Q ♦'];
-    const cartaJogada = cartasSimuladas[Math.floor(Math.random() * cartasSimuladas.length)];
-    
-    const novasCartas = [...cartasAtuais, cartaJogada];
-
-    // Salva a nova carta no Supabase. O Realtime vai avisar todos na sala instantaneamente!
-    await supabase
-        .from('rodadas')
-        .update({ cartas_na_mesa: novasCartas })
-        .eq('sala_id', SALA_ID);
-});
-
-// 3. Ação do botão de Truco
-btnTruco.addEventListener('click', async () => {
-    await supabase
-        .from('rodadas')
-        .update({ estado_truco: 'pedido' })
-        .eq('sala_id', SALA_ID);
-});
-
-// Dá o start quando a página carrega
+// Inicialização
 conectarNaMesa();
-
-// Adicione isso no final do seu main.js
-async function carregarEstadoInicial() {
-    const { data, error } = await supabase
-        .from('rodadas')
-        .select('cartas_na_mesa')
-        .eq('sala_id', 'SALA-01')
-        .single();
-    
-    if (data && data.cartas_na_mesa) {
-        renderizarMesa(data.cartas_na_mesa);
-    }
-}
-
-// Chame essa função logo após a conexão
-conectarNaMesa();
-carregarEstadoInicial();
-
-
-// 1. Função para carregar e exibir cartas
-async function carregarEExibir() {
-    console.log("Buscando estado inicial...");
-    const { data, error } = await supabase
-        .from('rodadas')
-        .select('cartas_na_mesa')
-        .eq('sala_id', SALA_ID)
-        .single();
-    
-    if (data && data.cartas_na_mesa) {
-        renderizarMesa(data.cartas_na_mesa);
-        divStatus.innerText = "Mesa carregada!";
-    }
-}
-
-// 2. Escutar mudanças em tempo real
-function conectarNaMesa() {
-    supabase
-        .channel('mesa-truco')
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'rodadas', filter: `sala_id=eq.${SALA_ID}` },
-            (payload) => {
-                console.log("Mudança detectada:", payload);
-                if (payload.new.cartas_na_mesa) {
-                    renderizarMesa(payload.new.cartas_na_mesa);
-                }
-            }
-        )
-        .subscribe();
-}
-
-// Executar ambos
-conectarNaMesa();
-carregarEExibir();
+inicializarMao();
